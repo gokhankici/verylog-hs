@@ -135,11 +135,12 @@ removeWires as = dbg
     (es, dupWriteMap) = wireUseEdges as
 
     eventCheck :: [AlwaysBlock] -> [AlwaysBlock]
-    eventCheck xs = if   all (\a -> a^.aEvent == Star) (init xs)
-                    then xs
-                    else error $
-                         "all blocks except the last one should be always@(*)\n" ++
-                         show xs
+    eventCheck = id
+    -- eventCheck xs = if   all (\a -> a^.aEvent == Star) (init xs)
+    --                 then xs
+    --                 else error $
+    --                      "all blocks except the last one should be always@(*)\n" ++
+    --                      show xs
       
     -- block # -> block
     abMap :: IM.IntMap AlwaysBlock
@@ -150,36 +151,39 @@ removeWires as = dbg
     maxId = fst $ IM.findMax abMap
 
 calcSubgraphs :: WireMap -> G -> [G]
-calcSubgraphs dupWriteMap g = concat [ pathsToLeaves (subgraph ns g) | ns <- combinedNodes ]
+-- calcSubgraphs dupWriteMap g = concat [ pathsToLeaves (subgraph ns g) | ns <- combinedNodes ]
+calcSubgraphs dupWriteMap g = if   M.null dupWriteMap
+                              then [g]
+                              else error "dupWriteMap is not null!\n"
   where
-    pathsToLeaves :: G -> [G]
-    pathsToLeaves gr = [ parentG r | r <- roots ]
-      where
-        rootG     = gfiltermap (\c -> if suc' c == [] then Just c else Nothing) gr
-        roots     = fst <$> labNodes rootG
-        parentG r = subgraph (rdfs [r] gr) gr
+    -- pathsToLeaves :: G -> [G]
+    -- pathsToLeaves gr = [ parentG r | r <- roots ]
+    --   where
+    --     rootG     = gfiltermap (\c -> if suc' c == [] then Just c else Nothing) gr
+    --     roots     = fst <$> labNodes rootG
+    --     parentG r = subgraph (rdfs [r] gr) gr
 
-    combinedNodes :: [[Node]]
-    combinedNodes = concat [ generateNodes ns | ns <- components g ]
+    -- combinedNodes :: [[Node]]
+    -- combinedNodes = concat [ generateNodes ns | ns <- components g ]
 
-    generateNodes :: [Node] -> [[Node]]
-    generateNodes ns =
-      let allUpds  = M.foldlWithKey' (\iss w is -> if   (IS.findMin is) `elem` ns
-                                                   then (w, IS.toList is):iss
-                                                   else iss
-                                     ) [] dupWriteMap
-          nsToDrop = map concat $ mapM allDropOnes $ snd <$> allUpds -- seems like it's doing the right thing ...
-      in if   allUpds == []
-         then [ns]
-         else let res = [ ns \\ nsNeg | nsNeg <- nsToDrop ]
-              in  trc "duplicate updates: " allUpds res
+    -- generateNodes :: [Node] -> [[Node]]
+    -- generateNodes ns =
+    --   let allUpds  = M.foldlWithKey' (\iss w is -> if   (IS.findMin is) `elem` ns
+    --                                                then (w, IS.toList is):iss
+    --                                                else iss
+    --                                  ) [] dupWriteMap
+    --       nsToDrop = map concat $ mapM allDropOnes $ snd <$> allUpds -- seems like it's doing the right thing ...
+    --   in if   allUpds == []
+    --      then [ns]
+    --      else let res = [ ns \\ nsNeg | nsNeg <- nsToDrop ]
+    --           in  trc "duplicate updates: " allUpds res
 
-    allDropOnes :: [a] -> [[a]]
-    allDropOnes as = helper (as, [])
-      where
-        helper ([], _)    = []
-        helper (a:as', l) =
-          let r = as' ++ l in (seq r r) : (helper (as', a:l))
+    -- allDropOnes :: [a] -> [[a]]
+    -- allDropOnes as = helper (as, [])
+    --   where
+    --     helper ([], _)    = []
+    --     helper (a:as', l) =
+    --       let r = as' ++ l in (seq r r) : (helper (as', a:l))
 
 makeGraph :: EdgeMap -> G
 makeGraph es =
