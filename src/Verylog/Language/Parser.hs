@@ -1,8 +1,10 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Verylog.Language.Parser ( parse
                                , parseWithoutConversion
@@ -16,6 +18,7 @@ import           Control.Lens
 import           Control.Monad (void)
 import           Control.Monad.State.Lazy
 import           Data.Char (isLetter, isDigit)
+import qualified Data.Text as T
 import           Data.Hashable
 import qualified Data.HashMap.Strict        as M
 import qualified Data.HashSet               as S
@@ -35,96 +38,96 @@ import           Verylog.Solver.FP.Types
 -- | Verylog IR
 -----------------------------------------------------------------------------------
 
-data ParsePort = PInput  ! String
-               | POutput ! String
+data ParsePort = PInput  T.Text
+               | POutput T.Text
                deriving (Eq, Show)
 
-data ParseVar = PRegister ! String
-              | PWire     ! String
+data ParseVar = PRegister T.Text
+              | PWire     T.Text
               deriving (Eq, Show)
 
-data ParseBehavior = PAlways ! ParseEvent ! ParseStmt
+data ParseBehavior = PAlways ParseEvent ParseStmt
                    deriving (Show)
 
 data ParseEvent = PStar
-                | PPosEdge ! String
-                | PNegEdge ! String
+                | PPosEdge T.Text
+                | PNegEdge T.Text
                 deriving (Show)
 
-data ParseUF = PUF  String [String]
-             | PUF2 { ufVarName  :: ! String
-                    , ufFuncName :: ! String
-                    , ufArgs     :: ! [String]
+data ParseUF = PUF  T.Text [T.Text]
+             | PUF2 { ufVarName  :: T.Text
+                    , ufFuncName :: T.Text
+                    , ufArgs     :: [T.Text]
                     }
                deriving (Show)
 
-data ParseGate = PContAsgn String String
-               | PModuleInst { pmModuleName    :: ! String
-                             , pmInstName      :: ! String            -- name of the module
-                             , pmInstPorts     :: ! [ParsePort]       -- port list (i.e. formal parameters)
-                             , pmInstVars      :: ! [ParseVar]        -- wires or registers used
-                             , pmInstGates     :: ! [ParseGate]       -- assign or module instantiations
-                             , pmInstBehaviors :: ! [ParseBehavior]   -- always blocks
-                             , pmInstUFs       :: ! [ParseUF]         -- uninterpreted functions
+data ParseGate = PContAsgn T.Text T.Text
+               | PModuleInst { pmModuleName    :: T.Text
+                             , pmInstName      :: T.Text            -- name of the module
+                             , pmInstPorts     :: [ParsePort]       -- port list (i.e. formal parameters)
+                             , pmInstVars      :: [ParseVar]        -- wires or registers used
+                             , pmInstGates     :: [ParseGate]       -- assign or module instantiations
+                             , pmInstBehaviors :: [ParseBehavior]   -- always blocks
+                             , pmInstUFs       :: [ParseUF]         -- uninterpreted functions
                              }
                deriving (Show)
                          
-data ParseIR = TopModule    { mPortNames :: ! [ParsePort]       -- port list (i.e. formal parameters)
-                            , mPorts     :: ! [ParseVar]        -- wires os registers used
-                            , mGates     :: ! [ParseGate]       -- assign or module instantiations
-                            , mBehaviors :: ! [ParseBehavior]   -- always blocks
-                            , mUFs       :: ! [ParseUF]         -- uninterpreted functions
+data ParseIR = TopModule    { mPortNames :: [ParsePort]       -- port list (i.e. formal parameters)
+                            , mPorts     :: [ParseVar]        -- wires os registers used
+                            , mGates     :: [ParseGate]       -- assign or module instantiations
+                            , mBehaviors :: [ParseBehavior]   -- always blocks
+                            , mUFs       :: [ParseUF]         -- uninterpreted functions
                             }
-             | PSource      ! String
-             | PSink        ! String
-             | PSanitize    ! [String]
-             | PNotSanitize { nsPortName   :: ! String
-                            , nsModuleName :: ! (Maybe String)
+             | PSource      T.Text
+             | PSink        T.Text
+             | PSanitize    [T.Text]
+             | PNotSanitize { nsPortName   :: T.Text
+                            , nsModuleName :: (Maybe T.Text)
                             }
-             | PSanitizeMod { sModuleName :: ! String
-                            , sVarName    :: ! String
+             | PSanitizeMod { sModuleName :: T.Text
+                            , sVarName    :: T.Text
                             }
-             | PTaintEqMod  { sModuleName :: ! String
-                            , sVarName    :: ! String
+             | PTaintEqMod  { sModuleName :: T.Text
+                            , sVarName    :: T.Text
                             }
-             | PSanitizeGlob ! String
-             | PTaintEq      ! String
-             | PAssertEq     ! String
-             | PQualifier    { invLhs :: ! String
-                             , invRhs :: ! [String]
+             | PSanitizeGlob ! T.Text
+             | PTaintEq      ! T.Text
+             | PAssertEq     ! T.Text
+             | PQualifier    { invLhs :: T.Text
+                             , invRhs :: [T.Text]
                              }
-             | PQualifierI   { invLhs :: ! String
-                             , invRhs :: ! [String]
+             | PQualifierI   { invLhs :: T.Text
+                             , invRhs :: [T.Text]
                              }
-             | PQualifier2   { invEqs :: ! [String]
+             | PQualifier2   { invEqs :: [T.Text]
                              }
-             | PQualifierA   { invAssume :: ! [String]
+             | PQualifierA   { invAssume :: [T.Text]
                              }
              deriving (Show)
 
-data ParseStmt = PBlock           ! [ParseStmt]
-               | PBlockingAsgn    ! String
-                                  ! String
-               | PNonBlockingAsgn ! String
-                                  ! String
-               | PIfStmt          ! String
-                                  ! ParseStmt
-                                  ! ParseStmt
+data ParseStmt = PBlock           [ParseStmt]
+               | PBlockingAsgn    T.Text
+                                  T.Text
+               | PNonBlockingAsgn T.Text
+                                  T.Text
+               | PIfStmt          T.Text
+                                  ParseStmt
+                                  ParseStmt
                | PSkip
                deriving (Show)
 
-data ParseSt = ParseSt { _parseSources      :: ! (S.HashSet Id)
-                       , _parseSinks        :: ! (S.HashSet Id)
-                       , _parsePorts        :: ! (S.HashSet Var)
-                       , _parseSanitize     :: ! (S.HashSet Id)
-                       , _parseNotSanitize  :: ! (M.HashMap Id (S.HashSet Id))
-                       , _parseSanitizeGlob :: ! (S.HashSet Id)
-                       , _parseTaintEq      :: ! (S.HashSet Id)
-                       , _parseAssertEq     :: ! (S.HashSet Id)
-                       , _parseModSanitize  :: ! (M.HashMap Id (S.HashSet Id))
-                       , _parseModTaintEq   :: ! (M.HashMap Id (S.HashSet Id))
-                       , _parseUFs          :: ! UFMap
-                       , _st                :: ! St
+data ParseSt = ParseSt { _parseSources      :: (S.HashSet Id)
+                       , _parseSinks        :: (S.HashSet Id)
+                       , _parsePorts        :: (S.HashSet Var)
+                       , _parseSanitize     :: (S.HashSet Id)
+                       , _parseNotSanitize  :: (M.HashMap Id (S.HashSet Id))
+                       , _parseSanitizeGlob :: (S.HashSet Id)
+                       , _parseTaintEq      :: (S.HashSet Id)
+                       , _parseAssertEq     :: (S.HashSet Id)
+                       , _parseModSanitize  :: (M.HashMap Id (S.HashSet Id))
+                       , _parseModTaintEq   :: (M.HashMap Id (S.HashSet Id))
+                       , _parseUFs          :: UFMap
+                       , _st                :: St
                        }
 
 emptyParseSt :: ParseSt
@@ -148,16 +151,16 @@ makeLenses ''ParseSt
 -- | Exported functions
 -----------------------------------------------------------------------------------
 
-type Parser = Parsec SourcePos String
+type Parser = Parsec SourcePos T.Text
 type Annots = ([Id], [FPQualifier])
 
 -- --------------------------------------------------------------------------------
-parse :: FilePath -> String -> (St, Annots)
+parse :: FilePath -> T.Text -> (St, Annots)
 -- --------------------------------------------------------------------------------
 parse f = parseWithoutConversion f >>> first makeState
 
 -- --------------------------------------------------------------------------------
-parseWithoutConversion :: FilePath -> String -> ([ParseIR], Annots)
+parseWithoutConversion :: FilePath -> T.Text -> ([ParseIR], Annots)
 -- --------------------------------------------------------------------------------
 parseWithoutConversion fp s = foldr f ([],([],[])) (parseWith parseIR fp s)
   where
@@ -168,7 +171,7 @@ parseWithoutConversion fp s = foldr f ([],([],[])) (parseWith parseIR fp s)
     f p@(PSource src)  = first ((:) p) >>> second (first ((:) src))
     f p                = first ((:) p)
 
-parseWith  :: Parser a -> FilePath -> String -> a
+parseWith  :: Parser a -> FilePath -> T.Text -> a
 parseWith p f s =
   case runParser (whole p) f s of
     Left err -> throw (IRParseError (parseErrorPretty err) (NE.head . errorPos $ err))
@@ -323,7 +326,7 @@ sanitizeSubmodules gates = sequence_ $ sanitizeInst <$> gates
                    <$> S.toList (vs `S.difference` negVars)
       sanitizeSubmodules pmInstGates
 
-    mk_mod_var m v = printf "%s_%s" m v
+    mk_mod_var m v = m `T.append` "_" `T.append` v
 
 
 -----------------------------------------------------------------------------------
@@ -353,7 +356,7 @@ collectPortAndUFs vs gs us = do
 -----------------------------------------------------------------------------------
 makeIntermediaryIR :: Loc -> [ParseBehavior] -> [ParseGate] -> St -> [IR]
 -----------------------------------------------------------------------------------
-type Loc = (String, String)
+type Loc = (T.Text, T.Text)
 
 makeIntermediaryIR loc alwaysBlocks gates topSt =
   (always2IR loc <$> alwaysBlocks) ++ (gate2IR loc topSt <$> gates)
@@ -485,10 +488,10 @@ spaceConsumer = (L.space (void spaceChar) lineCmnt blockCmnt) -- *> (L.space (vo
         -- prologDecl   = L.skipLineComment ":-"
 
 -- | `symbol s` parses just the string s (and trailing whitespace)
-symbol :: String -> Parser String
+symbol :: T.Text -> Parser T.Text
 symbol = L.symbol spaceConsumer
 
-comma :: Parser String
+comma :: Parser T.Text
 comma = symbol ","
 
 -- | 'parens' parses something between parenthesis.
@@ -503,7 +506,7 @@ list p = betweenS "[" "]" lp
 
 -- parseSep :: Parser a -> 
 
-betweenS :: String -> String -> Parser a -> Parser a
+betweenS :: T.Text -> T.Text -> Parser a -> Parser a
 betweenS l r = between (symbol l) (symbol r)
 
 -- | `lexeme p` consume whitespace after running p
@@ -511,11 +514,11 @@ lexeme :: Parser a -> Parser a
 lexeme p = L.lexeme spaceConsumer p
 
 -- | `rWord`
-rWord   :: String -> Parser String
+rWord   :: T.Text -> Parser T.Text
 rWord w = string w <* notFollowedBy alphaNumChar <* spaceConsumer
 
 -- | list of reserved words
-keywords :: [String]
+keywords :: [T.Text]
 keywords =
   [ "register", "wire", "always", "link", "asn", "taint_source", "taint_sink"
   , "block", "b_asn", "nb_asn", "ite", "skip", "module", "topmodule"
@@ -523,10 +526,10 @@ keywords =
   ]
 
 -- | `identifier` parses identifiers: lower-case alphabets followed by alphas or digits
-identifier :: Parser String
+identifier :: Parser T.Text
 identifier = lexeme (p >>= check)
   where
-    p            = (:) <$> letterChar <*> many nonFirstChar
+    p            = T.pack <$> ((:) <$> letterChar <*> many nonFirstChar)
     nonFirstChar = satisfy (\a -> isDigit a || isLetter a || a == '_')
     check x      = if x `elem` keywords
                    then fail $ "keyword " ++ show x ++ " cannot be an identifier"
@@ -565,8 +568,8 @@ cursorLine l s = printf "%s|  %s" (lineString l) s
 lineString :: Int -> String
 lineString n = replicate (10 - nD) ' ' ++ nS
   where
-    nS       = show n
-    nD       = Li.length nS
+    nS = show n
+    nD = Li.length nS
 
 renderError :: IRParseError -> IO String
 renderError e = do
@@ -579,16 +582,16 @@ instance ShowErrorComponent SourcePos where
   showErrorComponent pos = "parse error in file " ++ (MP.sourceName pos)
 
 data IRParseError = IRParseError
-  { eMsg :: !String
-  , ePos :: !MP.SourcePos
+  { eMsg :: String
+  , ePos :: MP.SourcePos
   }
   deriving (Show, Typeable)
 
 instance Exception IRParseError
 
 instance Hashable ParseVar where
-  hashWithSalt n (PRegister s) = hashWithSalt n ("parse-register", s)
-  hashWithSalt n (PWire s)     = hashWithSalt n ("parse-wire", s)
+  hashWithSalt n (PRegister s) = hashWithSalt n ("parse-register" :: String, s)
+  hashWithSalt n (PWire s)     = hashWithSalt n ("parse-wire" :: String, s)
 
 
 optionMaybe   :: Parser a -> Parser (Maybe a)

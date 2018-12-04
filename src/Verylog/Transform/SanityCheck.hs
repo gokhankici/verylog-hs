@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StrictData #-}
 
 module Verylog.Transform.SanityCheck ( sanityCheck
                                      ) where
@@ -13,7 +14,6 @@ import qualified Data.HashSet               as HS
 import qualified Data.IntSet                as IS
 import           Data.List
 import           Text.Printf
--- import           Debug.Trace
 
 import Verylog.Language.Types
 import Verylog.Transform.Utils

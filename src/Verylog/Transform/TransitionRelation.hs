@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StrictData #-}
 
 module Verylog.Transform.TransitionRelation ( next
                                             ) where
@@ -10,6 +11,7 @@ import           Control.Lens
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import           Data.List
+import qualified Data.Text as T
 
 import           Verylog.Transform.Utils hiding (fmt)
 import           Verylog.Language.Types
@@ -233,7 +235,7 @@ varDeps v = do c <- isUF v
                  then snd <$> uses (trSt.ufs) (M.lookupDefault err v)
                  else return [v]
   where
-    err = throw (PassError $ "could not find " ++ v ++ " in ufs")
+    err = throw (PassError $ "could not find " ++ T.unpack v ++ " in ufs")
 
 ----------------------------------------
 ufAtomsRHS :: VarFormat -> Id -> S [Expr]
@@ -244,7 +246,7 @@ ufAtomsRHS fmt u = do c <- isUF u
                       atoms <- varDeps u
                       sequence $ getLastVarRHS fmt <$> atoms
   where
-    err = throw (PassError $ "could not find " ++ u ++ " in ufs")
+    err = throw (PassError $ "could not find " ++ T.unpack u ++ " in ufs")
              
 
 ----------------------------------------

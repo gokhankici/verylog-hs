@@ -7,6 +7,8 @@ module Main where
 import           Control.Lens
 -- import           Control.Monad
 import           Data.List
+import qualified Data.Text       as T
+import qualified Data.Text.IO    as TIO
 -- import qualified Data.Set as DS
 -- import           Data.Foldable
 -- import           Verylog.Language.Parser (parse)
@@ -71,7 +73,7 @@ main1 args = do
   let fin  = optInputFile  args
       _fout = optOutputFile args
 
-  fstr <- readFile fin
+  fstr <- TIO.readFile fin
 
   let fpst = pipeline fin fstr
 
@@ -88,7 +90,7 @@ type M = HM.HashMap Id S
 
 type Acc2 = (Bool, Id, S, S)
 
-findFirstAssignment :: Id -> [AlwaysBlock] -> AlwaysBlock
+findFirstAssignment :: String -> [AlwaysBlock] -> AlwaysBlock
 findFirstAssignment v as = case filter (h . (view aStmt)) as of
                              []    -> error $ printf "first assignment of %s does not exist!\n" v
                              (a:_) -> a
@@ -96,8 +98,8 @@ findFirstAssignment v as = case filter (h . (view aStmt)) as of
   where
     h :: Stmt -> Bool
     h Skip                  = False
-    h (BlockingAsgn{..})    = lhs == v
-    h (NonBlockingAsgn{..}) = lhs == v
+    h (BlockingAsgn{..})    = lhs == T.pack v
+    h (NonBlockingAsgn{..}) = lhs == T.pack v
     h (IfStmt{..})          = h thenStmt || h elseStmt
     h (Block{..})           = any h blockStmts  
 
@@ -120,17 +122,17 @@ findMissing v m = h (wl_init, HS.singleton v, HS.empty)
 
 main2 :: Options -> IO ()
 main2 (Options{..}) = do
-  fstr <- readFile optInputFile
+  fstr <- TIO.readFile optInputFile
   let v   = head optUnknown
       as  = pipeline' optInputFile fstr
       a   = findFirstAssignment (head optUnknown) as
 
-      vt  = makeVarName fmt{leftVar=True,taggedVar=True} v
+      vt  = makeVarName fmt{leftVar=True,taggedVar=True} (T.pack v)
       (e,upds) = next fmt{leftVar=True} a
 
       Just (Var vt1) = lookup vt upds 
       prts = a ^. aSt ^. ports
-      t = case find ((==) v . varName) prts of
+      t = case find ((==) v . T.unpack . varName) prts of
             Nothing           -> "???"
             Just (Wire _)     -> "wire"
             Just (Register _) -> "register"
@@ -138,7 +140,7 @@ main2 (Options{..}) = do
   putStrLn "--------------------------------------------------"
 
   let es  = h e
-      es' = filter (\(BinOp{..}) -> let Var l = expL in "VLT" `isPrefixOf` l) es
+      es' = filter (\(BinOp{..}) -> let Var l = expL in (T.pack "VLT") `T.isPrefixOf` l) es
 
   let m = foldl' (\m' (BinOp{..}) ->
                      let Var l = expL
@@ -152,7 +154,7 @@ main2 (Options{..}) = do
   where
     print' :: [Var] -> (Int, Id) -> IO ()
     print' prts (n,v) =
-      let v' = drop 1 $ dropWhile (\c -> c /= '_') v
+      let v' = T.drop 1 $ T.dropWhile (\c -> c /= '_') v
           t  = case find ((==) v' . varName) prts of
                  Nothing           -> "???"
                  Just (Wire _)     -> "wire"

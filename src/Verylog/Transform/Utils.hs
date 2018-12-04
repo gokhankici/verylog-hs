@@ -1,4 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Verylog.Transform.Utils where
 
@@ -10,6 +12,7 @@ import           Control.Exception
 import           Text.Printf
 import           Debug.Trace
 import           Data.List
+import qualified Data.Text as T
 import qualified Data.HashSet            as HS
 
 data VarFormat = VarFormat { taggedVar   :: Bool
@@ -38,7 +41,7 @@ makeVar f v = Var (makeVarName f v)
 makeVarName :: VarFormat -> Id -> Id
 makeVarName f@(VarFormat{..}) v =
   -- printf "%s%sV%s%s%s_%s" par atom pos tag vid v
-  par ++ atom ++ "V" ++ pos ++ tag ++ vid ++ "_" ++ v
+  par +|+ atom +|+ "V" +|+ pos +|+ tag +|+ vid +|+ "_" +|+ v
 
   where
     atom | atomVar   = "v"
@@ -50,15 +53,17 @@ makeVarName f@(VarFormat{..}) v =
     tag  | taggedVar = "T"
          | otherwise = ""
 
-    vid   = maybe "" show varId
+    vid   = maybe "" (T.pack . show) varId
 
-    pos   | (leftVar && rightVar) = throw (PassError $ "Both left & right requested from makeVarName for " ++ v ++ " " ++ show f)
+    pos   | (leftVar && rightVar) = throw (PassError $ "Both left & right requested from makeVarName for " ++ T.unpack v ++ " " ++ show f)
           | leftVar   = "L"
           | rightVar  = "R"
           | otherwise = ""
 
+    a +|+ b = T.append a b
+
 isTag :: Id -> Bool
-isTag v = isPrefixOf "VLT" v || isPrefixOf "VRT" v
+isTag v = T.isPrefixOf "VLT" v || T.isPrefixOf "VRT" v
 
 allArgs        :: VarFormat -> St -> [Id]
 allArgs f st = let ps = map varName $ filter isRegister (st^.ports)
@@ -84,14 +89,14 @@ makeBothTags vs = [mk fmt{leftVar=True}, mk fmt{rightVar=True}] <*> vs
 trc         :: Show b => String -> b -> a -> a
 trc msg b a = trace (printf "%s%s" msg (show b)) a
 
-constants :: [(String,Expr)]
+constants :: [(T.Text,Expr)]
 constants = [ ("zero",  Number 0)
             , ("one",   Number 1)
             , ("tru",   Boolean True)
             , ("fals",  Boolean False)
             ]
 
-getConstantName :: Expr -> String
+getConstantName :: Expr -> T.Text
 getConstantName e =
   case find ((==) e . snd) constants of
     Just (name,_) -> name

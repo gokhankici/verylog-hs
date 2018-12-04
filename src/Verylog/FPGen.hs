@@ -3,6 +3,7 @@ module Verylog.FPGen ( pipeline
                      ) where
 
 import Control.Arrow
+import qualified Data.Text as T
 
 import Verylog.Language.Parser
 import Verylog.Language.Types
@@ -13,17 +14,17 @@ import Verylog.Transform.FPVCGen
 import Verylog.Solver.FP.Types
 
 --------------------------------------------------------------------------------
-pipeline :: FilePath -> String -> FPSt
+pipeline :: FilePath -> T.Text -> FPSt
 --------------------------------------------------------------------------------
 pipeline f = common f >>> toFpSt
 
   
 --------------------------------------------------------------------------------
-pipeline' :: FilePath -> String -> [AlwaysBlock]
+pipeline' :: FilePath -> T.Text -> [AlwaysBlock]
 --------------------------------------------------------------------------------
 pipeline' f = common f >>> arr fst
 
-common :: FilePath -> String -> ([AlwaysBlock], Annots)
+common :: FilePath -> T.Text -> ([AlwaysBlock], Annots)
 common f = parse f
            >>> first ( flatten >>> sanityCheck )
            >>> merge

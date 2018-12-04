@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StrictData #-}
 
 module Verylog.Solver.FP.FQ ( toFqFormat
                             , Metadata
@@ -16,6 +17,7 @@ import           Control.Monad.Reader
 import qualified Data.List                  as L
 import qualified Data.HashSet               as HS
 import qualified Data.HashMap.Strict        as M
+import qualified Data.Text                  as T
 import           Text.Printf
 
 import qualified Language.Fixpoint.Types    as FQT
@@ -75,9 +77,9 @@ toFqFormat fpst =
       axiomEnv    = AEnv [] [] M.empty
       dataDecls   = []
 
-      custom n (QualifImpl l rs) = custom1 n l rs
-      custom n (QualifEqs vs)    = custom2 n vs
-      custom n (QualifIff l rs)  = custom3 n l rs
+      custom n (QualifImpl l rs) = custom1 n (T.unpack l) (T.unpack <$> rs)
+      custom n (QualifEqs vs)    = custom2 n (T.unpack <$> vs)
+      custom n (QualifIff l rs)  = custom3 n (T.unpack l) (T.unpack <$> rs)
       custom _ (QualifAssume _)  = []
 
       custom1 n l rs = 

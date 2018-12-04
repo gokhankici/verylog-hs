@@ -1,13 +1,15 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Verylog.Solver.Common where
 
-import Text.Printf
 import Control.Lens
 import Verylog.Language.Types
 import GHC.Generics
 import Control.DeepSeq
+import qualified Data.Text as T
 
 import Language.Fixpoint.Types (Fixpoint(..), Loc(..), showFix, dummySpan)
 import qualified Text.PrettyPrint.HughesPJ as PP
@@ -15,14 +17,14 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 data BinOp = EQU | LE | GE | OR | AND | PLUS | IMPLIES | IFF
            deriving (Show, Eq, Generic, Ord)
 
-data InvType = InvInit     !Int
-             | InvReTag    !Int
-             | InvSrcReset !Int
-             | InvNext     !Int
-             | InvTagEq    !Int
-             | InvWF       !Int
-             | InvInter    !Int
-             | InvOther    !String
+data InvType = InvInit     Int
+             | InvReTag    Int
+             | InvSrcReset Int
+             | InvNext     Int
+             | InvTagEq    Int
+             | InvWF       Int
+             | InvInter    Int
+             | InvOther    T.Text
             deriving (Generic, Eq, Ord)
 
 instance Fixpoint InvType where
@@ -33,7 +35,7 @@ instance Fixpoint InvType where
   toFix (InvTagEq n)    = PP.text "tag eq of block"    PP.<+> PP.int n
   toFix (InvWF n)       = PP.text "wf of block"        PP.<+> PP.int n
   toFix (InvInter n)    = PP.text "interference with"  PP.<+> PP.int n
-  toFix (InvOther s)    = PP.text s
+  toFix (InvOther s)    = PP.text $ T.unpack s
 
 instance Show InvType where
   show = showFix
@@ -52,30 +54,30 @@ instance Fixpoint HornId where
 instance NFData InvType
 instance NFData HornId
 
-data Inv = Horn { hBody :: ! Expr -- body of the horn clause
-                , hHead :: ! Expr -- head of the horn clause, must be a kvar
-                , hId   :: ! HornId
+data Inv = Horn { hBody :: Expr -- body of the horn clause
+                , hHead :: Expr -- head of the horn clause, must be a kvar
+                , hId   :: HornId
                 }
            deriving (Show, Generic)
 
-data Expr = BinOp     { bOp   :: ! BinOp
-                      , expL  :: ! Expr
-                      , expR  :: ! Expr
+data Expr = BinOp     { bOp   :: BinOp
+                      , expL  :: Expr
+                      , expR  :: Expr
                       }
           | Ands      [Expr]
-          | Ite       { cnd     :: ! Expr
-                      , expThen :: ! Expr
-                      , expElse :: ! Expr
+          | Ite       { cnd     :: Expr
+                      , expThen :: Expr
+                      , expElse :: Expr
                       }
-          | KV        { kvId   :: ! Int
-                      , kvSubs :: ! [(Id,Expr)]
+          | KV        { kvId   :: Int
+                      , kvSubs :: [(Id,Expr)]
                       }
           | Var       Id
           | Boolean   Bool
           | Number    Int
-          | UFCheck   { ufArgs  :: ! [(Expr,Expr)]
-                      , ufNames :: ! (Expr,Expr)
-                      , ufFunc  :: ! Id
+          | UFCheck   { ufArgs  :: [(Expr,Expr)]
+                      , ufNames :: (Expr,Expr)
+                      , ufFunc  :: Id
                       }
           deriving (Show, Eq, Generic)
 
@@ -83,15 +85,15 @@ instance NFData BinOp
 instance NFData Expr
 instance NFData Inv
 
-nextPred :: [Char]
+nextPred :: T.Text
 nextPred = "next"
 
-invPred :: [Char]
+invPred :: T.Text
 invPred  = "inv"
 
-makeInvPred   :: AlwaysBlock -> String
+makeInvPred   :: AlwaysBlock -> T.Text
 makeInvPred a = makeInv (a^.aId)
 
-makeInv :: Int -> String
-makeInv n = printf "inv%d" n
+makeInv :: Int -> T.Text
+makeInv n = "inv" `T.append` (T.pack $ show n)
 

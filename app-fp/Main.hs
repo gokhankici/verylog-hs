@@ -19,6 +19,7 @@ import qualified Data.Set        as S
 import qualified Data.Map.Strict as M
 import           Data.List
 import           Data.Maybe
+import qualified Data.Text.IO    as TIO
 import           Control.Exception
 import           Control.Lens hiding ((<.>))
 import           System.Console.ANSI
@@ -83,7 +84,7 @@ main :: IO ()
 main  = do
   Options{..} <- parseOpts
 
-  fileContents <- readFile optInputFile
+  fileContents <- TIO.readFile optInputFile
 
   fpst <- do
     res <- try $ evaluate $ pipeline optInputFile fileContents

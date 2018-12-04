@@ -17,24 +17,25 @@ description:         Please see the README on Github at <https://github.com/gokh
 
 dependencies:
 - base >= 4.7 && < 5
+- ansi-terminal
 - array
 - cmdargs
 - containers
+- deepseq
 - directory
+- fgl
+- fgl-visualize
 - filepath
+- hashable
 - lens
+- liquid-fixpoint
 - megaparsec
 - mtl
 - pretty
 - process
 - semigroups
+- text
 - unordered-containers
-- ansi-terminal
-- liquid-fixpoint
-- deepseq
-- hashable
-- fgl
-- fgl-visualize
 
 library:
   source-dirs:           src

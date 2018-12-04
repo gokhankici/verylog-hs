@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData #-}
 
 module Verylog.Solver.FP.Types
   ( FQBind(..)
@@ -35,15 +37,15 @@ import           Verylog.Solver.Common
 import           GHC.Generics hiding (to)
 import           Control.DeepSeq
 
-data FPQualifier = QualifImpl { qualifLhs  :: !Id
-                              , qualifRhss :: ![Id]
+data FPQualifier = QualifImpl { qualifLhs  :: Id
+                              , qualifRhss :: [Id]
                               }
-                 | QualifIff  { qualifLhs  :: !Id
-                              , qualifRhss :: ![Id]
+                 | QualifIff  { qualifLhs  :: Id
+                              , qualifRhss :: [Id]
                               }
-                 | QualifEqs  { qualifEqs :: ![Id]
+                 | QualifEqs  { qualifEqs :: [Id]
                               }
-                 | QualifAssume { qualifAssume :: ![Id]
+                 | QualifAssume { qualifAssume :: [Id]
                                 }
                  deriving (Generic, Show)
 

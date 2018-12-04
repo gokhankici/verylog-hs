@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Verylog.Language.Types where
 
@@ -10,9 +12,10 @@ import           Control.Monad.Reader
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
+import qualified Data.Text as T
 import           Data.Typeable
-import           Text.PrettyPrint hiding (sep)
-import           Data.List
+import           Text.PrettyPrint hiding (sep, text)
+import qualified Text.PrettyPrint as PP
 import qualified Data.Semigroup as SG
 import           Data.Hashable
 import qualified Data.Monoid as Mo
@@ -23,11 +26,11 @@ import           Control.DeepSeq
 -- IR for the formalism
 --------------------------------------------------------------------------------
 
-data AlwaysBlock = AB { _aEvent   :: ! Event
-                      , _aStmt    :: ! Stmt
-                      , _aId      :: ! Int
-                      , _aSt      :: ! St
-                      , _aLoc     :: ! (String, String) -- Module & instance name
+data AlwaysBlock = AB { _aEvent   :: Event
+                      , _aStmt    :: Stmt
+                      , _aId      :: Int
+                      , _aSt      :: St
+                      , _aLoc     :: (T.Text, T.Text) -- Module & instance name
                       }
                    deriving (Generic)
 
@@ -35,40 +38,40 @@ data AlwaysBlock = AB { _aEvent   :: ! Event
 -- Intermediary IR after parsing
 --------------------------------------------------------------------------------
 
-type Id = String
+type Id = T.Text
 
-data Port = Input  { portName :: ! String }
-          | Output { portName :: ! String }
+data Port = Input  { portName :: Id }
+          | Output { portName :: Id }
           deriving (Eq, Generic)
 
 instance Show Port where
-  show (Input  i) = "input("  ++ i ++ ")"
-  show (Output o) = "output(" ++ o ++ ")"
+  show (Input  i) = "input("  ++ T.unpack i ++ ")"
+  show (Output o) = "output(" ++ T.unpack o ++ ")"
 
 instance Hashable Port where
-  hashWithSalt n (Input s)  = hashWithSalt n ("input", s)
-  hashWithSalt n (Output s) = hashWithSalt n ("output", s)
+  hashWithSalt n (Input s)  = hashWithSalt n ("input" :: T.Text, s)
+  hashWithSalt n (Output s) = hashWithSalt n ("output" :: T.Text, s)
 
-data Var = Register { varName :: ! String }
-         | Wire     { varName :: ! String }
+data Var = Register { varName :: Id }
+         | Wire     { varName :: Id }
          deriving (Eq, Generic)
 
 instance Show Var where
-  show (Register r) = "register(" ++ r ++ ")"
-  show (Wire     w) = "wire("     ++ w ++ ")"
+  show (Register r) = "register(" ++ T.unpack r ++ ")"
+  show (Wire     w) = "wire("     ++ T.unpack w ++ ")"
 
 
 instance Hashable Var where
-  hashWithSalt n (Register s) = hashWithSalt n ("register", s)
-  hashWithSalt n (Wire s)     = hashWithSalt n ("wire", s)
+  hashWithSalt n (Register s) = hashWithSalt n ("register" :: T.Text, s)
+  hashWithSalt n (Wire s)     = hashWithSalt n ("wire" :: T.Text, s)
 
-data IR = Always     { event      :: ! Event
-                     , alwaysStmt :: ! Stmt
-                     , alwaysLoc  :: ! (String, String) -- Module & instance name
+data IR = Always     { event      :: Event
+                     , alwaysStmt :: Stmt
+                     , alwaysLoc  :: (Id, Id) -- Module & instance name
                      }
-        | ModuleInst { modInstName :: ! String
-                     , modParams   :: ! [Port] -- formal parameters
-                     , modInstSt   :: ! St
+        | ModuleInst { modInstName :: Id
+                     , modParams   :: [Port] -- formal parameters
+                     , modInstSt   :: St
                      }
         deriving (Generic)
 
@@ -148,6 +151,9 @@ instance Exception PassError
 -- Pretty printing
 -- -----------------------------------------------------------------------------  
 
+text :: T.Text -> Doc
+text = PP.text . T.unpack
+
 class PPrint a where
   toDoc :: a -> Doc
 
@@ -224,17 +230,18 @@ instance PPrint AlwaysBlock where
     where
       comment t = text "/*" <+> text t <+> text "*/"
 
-printList :: [String] -> Doc
-printList = brackets . text . (intercalate ", ")
+printList :: [Id] -> Doc
+printList = brackets . text . (T.intercalate ", ")
 
 printMap :: UFMap -> Doc
 printMap = brackets
            . text
-           . (intercalate ", ")
-           . (map mapKV)
+           . (T.intercalate ", ")
+           . (fmap mapKV)
            . M.toList
   where
-    mapKV (k,(f, l)) = "(" ++ k ++ ", " ++ f ++ ", [" ++ (intercalate ", " l) ++ "])"
+    a +|+ b = T.append a b
+    mapKV (k,(f, l)) = "(" +|+ k +|+ ", " +|+ f +|+ ", [" +|+ (T.intercalate ", " l) +|+ "])"
 
 instance Show IR where
   show = pprint
