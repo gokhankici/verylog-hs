@@ -60,6 +60,8 @@ verylog options:
       do not generate .fq files
   --abduction
       run the abduction interactive loop
+  --time
+      print the runtime in milliseconds
   -h, --help
       Prints this help
 

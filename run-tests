@@ -5,6 +5,59 @@ CONF_FILE=$THIS_DIR/configuration.sh
 
 source $CONF_FILE
 
+# global variables, helper functions  {{{
+function blue()  { print -P "%F{blue}%B$1%b%f" }
+function green() { print -P "%F{green}%B$1%b%f" }
+function red()   { print -P "%F{red}%B$1%b%f" }
+
+BMKS_DIR="$IVL_DIR/benchmarks"
+MIPS_DIR="$BMKS_DIR/472-mips-pipelined"
+CRYPTO_DIR="$BMKS_DIR/crypto_cores"
+
+SEP="================================================================================"
+
+function run_unit_tests() {
+	blue $SEP
+	blue "   RUNNING UNIT TESTS"
+	blue $SEP
+
+	stack test --fast
+
+	last_err=$?
+
+	if [[ $last_err -ne 0 ]]; then
+		echo
+		red $SEP
+		red "   UNIT TESTS FAILED !"
+		red $SEP
+		exit 1
+	fi
+}
+
+function run_verylog() {
+	local cmd
+	cmd=$THIS_DIR/verylog
+
+	if [[ -z "$NO_OUT" ]]; then
+		echo ${(@s/ /)cmd} $@
+	fi
+
+	local last_err
+	if [[ -z "$NO_OUT" ]]; then
+		${(@s/ /)cmd} $@
+		last_err=$?
+	else
+		${(@s/ /)cmd} $@ >/dev/null
+		last_err=$?
+	fi
+
+	return $last_err
+}
+
+
+# }}}
+
+# argument parsing {{{
 zparseopts -D -E -- \
 	u=UNIT -unit=UNIT \
 	-continue=CONTINUE \
@@ -14,21 +67,34 @@ zparseopts -D -E -- \
 	-single:=SINGLE \
 	h=HELP -help=HELP
 
+function print_help() {
+	cat <<EOF
+Runs the micro + macro benchmarks for the Iodine project
+
+run-test Arguments:
+  -n, --name <NAME> : Runs a subset of the benchmarks. Options are:
+                      simple, mips-stub, mips-module, major, neg
+  --single <NAME>   : Runs the given macro benchmark. Options are:
+                      mips, yarvi, sha256, fpu, fpu-div, modexp
+  -u, --unit        : Runs the unit tests of the Haskell code
+  --continue        : Do not fail if a single test fails
+  --no-output       : Do not print the test output
+  --times <COUNT>   : Runs each selected benchmark COUNT times
+  -h, --help        : Prints this message
+
+Unrecognized arguments are passed to the verylog script:
+
+EOF
+	$THIS_DIR/verylog --help
+}
+
 if [[ -n "$HELP" ]]; then
-	echo "${0:t} options:"
-	echo "    (u)nit, continue, no-output, times <N>, (n)ame <S>, (h)elp"
+	print_help
 	exit 0
 fi
+# }}}
 
-function blue()  { print -P "%F{blue}%B$1%b%f" }
-function green() { print -P "%F{green}%B$1%b%f" }
-function red()   { print -P "%F{red}%B$1%b%f" }
-
-BMKS_DIR="$IVL_DIR/benchmarks"
-MIPS_DIR="$BMKS_DIR/472-mips-pipelined"
-CRYPTO_DIR="$BMKS_DIR/crypto_cores"
-
-# --name simple
+# --name simple {{{
 typeset -A SIMPLE_TESTS
 SIMPLE_TESTS=( \
 	"01 - 01 - tr-test-1"     "-M test          $THIS_DIR/test/verilog/pos/tr-test-1.v" \
@@ -46,8 +112,9 @@ SIMPLE_TESTS=( \
 	"01 - 14 - merge-04"      "-M test          $THIS_DIR/test/verilog/pos/merge04.v"   \
 	"01 - 15 - tr-test-11"    "-M test          $THIS_DIR/test/verilog/pos/tr-test-11.v" \
 	)
+# }}}
 
-# --name mips-stub
+# --name mips-stub {{{
 typeset -A MIPS_STUB_TESTS
 MIPS_STUB_TESTS=( \
 	"02 - 01 - mips fragment"       "-M mips_pipeline $MIPS_DIR/472-mips-fragment.v"   \
@@ -55,8 +122,9 @@ MIPS_STUB_TESTS=( \
 	"02 - 03 - mips fragment v3"    "-M mips_pipeline $MIPS_DIR/472-mips-fragment-3.v" \
 	"02 - 04 - mips fragment v4"    "-M mips_pipeline $MIPS_DIR/472-mips-fragment-4.v" \
 	)
+# }}}
 
-# --name mips-module
+# --name mips-module {{{
 typeset -A MIPS_MODULE_TESTS
 MIPS_MODULE_TESTS=( \
 	"03 - 01 - reg32"               "-M reg32            $MIPS_DIR/reg32.v" \
@@ -70,8 +138,9 @@ MIPS_MODULE_TESTS=( \
 	"03 - 09 - rom32"               "-M rom32            $MIPS_DIR/rom32.v" \
 	"03 - 10 - reg_file"            "-M reg_file         $MIPS_DIR/reg_file.v" \
 	)
+# }}}
 
-# --name major
+# --name major {{{
 typeset -A MAJOR_NAMES
 MAJOR_NAMES=( \
 	"mips"    "10 - 01 - mips full"    \
@@ -95,8 +164,9 @@ MAJOR_NEG_TESTS=( \
 	"10 - 05 - fpu-divider"  "-M divider       $BMKS_DIR/fpu2/divider/divider.v" \
 	"10 - 06 - ModExp"       "-M ModExp        $CRYPTO_DIR/RSA4096/ModExp2/ModExp.v"\
 	)
+# }}}
 
-# --name neg
+# --name neg {{{
 typeset -A NEG_TESTS_SIMPLE
 NEG_TESTS_SIMPLE=( \
 	"-01 - 01 - neg-test-1"    "-M test $THIS_DIR/test/verilog/neg/neg-test-1.v" \
@@ -111,7 +181,9 @@ NEG_TESTS_SIMPLE=( \
 	"-02 - 01 - secver-neg-01" "-M test $THIS_DIR/test/verilog/neg/secverilog-neg-01.v" \
 	"-02 - 02 - secver-neg-02" "-M test $THIS_DIR/test/verilog/neg/secverilog-neg-02.v" \
 	)
+# }}}
 
+# pick the benchmarks to run {{{
 if [[ -z "$TIMES" ]]; then
 	REPLICATE=1
 else
@@ -192,61 +264,24 @@ else
 			;;
 	esac
 fi
+# }}}
 
 echo
-
-function run_unit_tests() {
-	blue "================================================================================"
-	blue "   RUNNING UNIT TESTS"
-	blue "================================================================================"
-
-	stack test --fast
-
-	last_err=$?
-
-	if [[ $last_err -ne 0 ]]; then
-		echo
-		red "================================================================================"
-		red "   UNIT TESTS FAILED !"
-		red "================================================================================"
-		exit 1
-	fi
-}
 
 if [[ -n "$UNIT" ]]; then
 	run_unit_tests
 fi
 
-run_verylog() {
-	local cmd
-	cmd=$THIS_DIR/verylog
-
-	if [[ -z "$NO_OUT" ]]; then
-		echo ${(@s/ /)cmd} $@
-	fi
-
-	local last_err
-	if [[ -z "$NO_OUT" ]]; then
-		${(@s/ /)cmd} $@
-		last_err=$?
-	else
-		${(@s/ /)cmd} $@ >/dev/null
-		last_err=$?
-	fi
-
-	return $last_err
-}
-
-
+# main loop {{{
 for ((i=0; i<$REPLICATE; i++)); do
 
 	blue "=== RUN $i ====================================================================="
 
 	for test_name in ${(ok)TESTS}; do
 		if [[ -z "$NO_OUT" ]]; then
-			blue "================================================================================"
+			blue $SEP
 			blue "   RUNNING $test_name"
-			blue "================================================================================"
+			blue $SEP
 		fi
 
 		test_input="${TESTS[$test_name]}"
@@ -258,25 +293,25 @@ for ((i=0; i<$REPLICATE; i++)); do
 		last_err=$?
 
 		if [[ $last_err -ne 0 ]]; then
-			red "================================================================================"
+			red $SEP
 			red "   TEST '$test_name' FAILED !"
-			red "================================================================================"
+			red $SEP
 
 			if [[ -z "$CONTINUE" ]]; then
 				exit 1
 			fi	
 		else
-			green "================================================================================"
+			green $SEP
 			green "   TEST '$test_name' PASSED !"
-			green "================================================================================"
+			green $SEP
 		fi
 	done
 
 	for test_name in ${(ok)NEG_TESTS}; do
 		if [[ -z "$NO_OUT" ]]; then
-			blue "================================================================================"
+			blue $SEP
 			blue "   RUNNING NEG $test_name"
-			blue "================================================================================"
+			blue $SEP
 		fi
 
 		test_input="${NEG_TESTS[$test_name]}"
@@ -289,23 +324,26 @@ for ((i=0; i<$REPLICATE; i++)); do
 		last_err=$?
 
 		if [[ $last_err -eq 0 ]]; then
-			red "================================================================================"
+			red $SEP
 			red "   NEG TEST '$test_name' FAILED !" 1>&2
-			red "================================================================================"
+			red $SEP
 
 			if [[ -z "$CONTINUE" ]]; then
 				exit 1
 			fi	
 		else
-			green "================================================================================"
+			green $SEP
 			green "   NEG TEST '$test_name' PASSED !" 1>&2
-			green "================================================================================"
+			green $SEP
 		fi
 	done
 done
+# }}}
 
 if [[ -z "$CONTINUE" ]]; then
-    green "================================================================================"
+    green $SEP
     green "   ALL TESTS PASSED !"
-    green "================================================================================"
+    green $SEP
 fi
+
+# vim: set foldmethod=marker:

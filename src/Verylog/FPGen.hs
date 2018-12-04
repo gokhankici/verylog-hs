@@ -26,5 +26,6 @@ pipeline' f = common f >>> arr fst
 
 common :: FilePath -> T.Text -> ([AlwaysBlock], Annots)
 common f = parse f
-           >>> first ( flatten >>> sanityCheck )
+           >>> first flatten
+           -- >>> first sanityCheck
            >>> merge

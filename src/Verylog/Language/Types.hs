@@ -81,31 +81,31 @@ data Event = Star
            | Assign
            deriving (Eq, Generic)
 
-data Stmt = Block           { blockStmts :: ! [Stmt] }
-          | BlockingAsgn    { lhs        :: ! Id
-                            , rhs        :: ! Id
+data Stmt = Block           { blockStmts :: [Stmt] }
+          | BlockingAsgn    { lhs        :: Id
+                            , rhs        :: Id
                             }
-          | NonBlockingAsgn { lhs        :: ! Id
-                            , rhs        :: ! Id
+          | NonBlockingAsgn { lhs        :: Id
+                            , rhs        :: Id
                             }
-          | IfStmt          { ifCond     :: ! Id
-                            , thenStmt   :: ! Stmt
-                            , elseStmt   :: ! Stmt
+          | IfStmt          { ifCond     :: Id
+                            , thenStmt   :: Stmt
+                            , elseStmt   :: Stmt
                             }
           | Skip
           deriving (Generic)
 
 type UFMap = M.HashMap Id (Id, [Id])
 
-data St = St { _ports        :: ! [Var]
-             , _ufs          :: ! UFMap
-             , _sources      :: ! [Id]
-             , _sinks        :: ! [Id]
-             , _taintEq      :: ! [Id]
-             , _assertEq     :: ! [Id]
-             , _sanitize     :: ! [Id]
-             , _sanitizeGlob :: ! [Id]
-             , _irs          :: ! [IR]
+data St = St { _ports        :: [Var]
+             , _ufs          :: UFMap
+             , _sources      :: [Id]
+             , _sinks        :: [Id]
+             , _taintEq      :: [Id]
+             , _assertEq     :: [Id]
+             , _sanitize     :: [Id]
+             , _sanitizeGlob :: [Id]
+             , _irs          :: [IR]
              }
           deriving (Generic)
 
@@ -138,9 +138,9 @@ readIRs st f = st^.irs.to (map (r . f))
   where
     r m = runReader m st
 
-data PassError = PassError !String
-               | CycleError { cycleStr      :: !String
-                            , cycleErrorStr :: !String
+data PassError = PassError String
+               | CycleError { cycleStr      :: String
+                            , cycleErrorStr :: String
                             }
                deriving (Show, Typeable)
 
